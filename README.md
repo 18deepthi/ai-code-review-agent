@@ -41,7 +41,7 @@ graph TD
     subgraph Spring Boot Backend
         Ctrl[ReviewController]
         ReviewSvc[CodeReviewService]
-        FeatureExt[Snippet Characteristics Extractor]
+        FeatExt[Snippet Characteristics Extractor]
         HindsightCli[HindsightClient Service]
         GroqCli[GroqClient with Retries]
         HistStore[Submission History Store]
@@ -59,10 +59,10 @@ graph TD
 ```
 
 ## Tech Stack
-- **Backend:** Java 17, Spring Boot 3.3.x, Maven
-- **Frontend:** React + Vite
-- **Memory:** Hindsight Cloud
-- **LLM:** Groq (`openai/gpt-oss-120b`, fallback `qwen/qwen3.8-27b`)
+- Backend: Java 17, Spring Boot 3.x, Maven
+- Frontend: React + Vite
+- Memory: Hindsight Cloud
+- LLM: Groq (openai/gpt-oss-120b)
 
 ## Setup & Run
 
@@ -94,8 +94,16 @@ Open the local URL shown by Vite (usually `http://localhost:5173`).
 1. Select a team and load a synthetic Java scenario
 2. Click "Review Code with Memory" — see it flag issues generically
 3. Click "Reject & Remember" on a suggestion
-4. Load a similar scenario — see it now skip the issue, citing the learned team preference
-5. Check the Memory Dashboard and History tabs to see accumulated learning over time
+4. Load a similar scenario — see it now skip the issue, citing the 
+   learned team preference
+5. Check the Memory Dashboard and History tabs to see accumulated 
+   learning over time
+
+
+
+Open the local URL shown by Vite (usually `http://localhost:5173`).
+
+
 
 ## Team
 - Sai Venkata Deepthi Nakka
