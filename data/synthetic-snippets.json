@@ -1,0 +1,182 @@
+[
+  {
+    "id": "snippet-fi-1",
+    "title": "Order Processing Service (Field Injection)",
+    "category": "field_injection",
+    "categoryLabel": "Field Injection",
+    "description": "Uses @Autowired directly on private non-final fields instead of constructor injection.",
+    "code": "package com.example.service;\n\nimport org.springframework.beans.factory.annotation.Autowired;\nimport org.springframework.stereotype.Service;\nimport com.example.repo.OrderRepository;\nimport com.example.repo.PaymentGateway;\n\n@Service\npublic class OrderProcessorService {\n\n    @Autowired\n    private OrderRepository orderRepository;\n\n    @Autowired\n    private PaymentGateway paymentGateway;\n\n    public void processOrder(Long orderId) {\n        var order = orderRepository.findById(orderId);\n        paymentGateway.charge(order);\n    }\n}",
+    "typicalRuleKey": "field_injection",
+    "exampleOverrideNote": "Team convention: Field injection permitted in legacy payment adapters"
+  },
+  {
+    "id": "snippet-fi-2",
+    "title": "User Notification Manager (Field Injection)",
+    "category": "field_injection",
+    "categoryLabel": "Field Injection",
+    "description": "Legacy notification manager injecting multiple email/sms client services via field injection.",
+    "code": "package com.example.notification;\n\nimport org.springframework.beans.factory.annotation.Autowired;\nimport org.springframework.stereotype.Component;\n\n@Component\npublic class NotificationManager {\n\n    @Autowired\n    private EmailDispatcher emailDispatcher;\n\n    @Autowired\n    private SmsGateway smsGateway;\n\n    public void notifyUser(String userId, String message) {\n        emailDispatcher.send(userId, message);\n        smsGateway.dispatch(userId, message);\n    }\n}",
+    "typicalRuleKey": "field_injection",
+    "exampleOverrideNote": "Legacy notification components use field injection for backward compatibility"
+  },
+  {
+    "id": "snippet-fi-3",
+    "title": "Inventory Audit Listener (Field Injection)",
+    "category": "field_injection",
+    "categoryLabel": "Field Injection",
+    "description": "Audit event listener autowiring audit loggers and metrics publisher directly.",
+    "code": "package com.example.audit;\n\nimport org.springframework.beans.factory.annotation.Autowired;\nimport org.springframework.stereotype.Service;\n\n@Service\npublic class AuditEventListener {\n\n    @Autowired\n    private AuditLogger auditLogger;\n\n    @Autowired\n    private MetricRegistry metricRegistry;\n\n    public void recordStockMovement(Long itemId, int delta) {\n        auditLogger.logEvent(\"STOCK_MOVE\", itemId, delta);\n        metricRegistry.counter(\"inventory.moves\").inc();\n    }\n}",
+    "typicalRuleKey": "field_injection",
+    "exampleOverrideNote": "Internal audit listeners standardized on field injection"
+  },
+  {
+    "id": "snippet-np-1",
+    "title": "Customer Invoices Fetcher (N+1 Query in Loop)",
+    "category": "n_plus_one",
+    "categoryLabel": "N+1 Query Loop",
+    "description": "Iterating over customer entities and fetching their invoices one by one in a loop.",
+    "code": "package com.example.billing;\n\nimport org.springframework.stereotype.Service;\nimport java.util.List;\nimport java.util.ArrayList;\n\n@Service\npublic class InvoiceAggregator {\n\n    private final CustomerRepository customerRepo;\n    private final InvoiceRepository invoiceRepo;\n\n    public InvoiceAggregator(CustomerRepository customerRepo, InvoiceRepository invoiceRepo) {\n        this.customerRepo = customerRepo;\n        this.invoiceRepo = invoiceRepo;\n    }\n\n    public List<Invoice> getPendingInvoicesForActiveCustomers() {\n        List<Customer> active = customerRepo.findActiveCustomers();\n        List<Invoice> result = new ArrayList<>();\n        for (Customer c : active) {\n            List<Invoice> invoices = invoiceRepo.findByCustomerId(c.getId());\n            result.addAll(invoices);\n        }\n        return result;\n    }\n}",
+    "typicalRuleKey": "n_plus_one",
+    "exampleOverrideNote": "Customer counts are capped at <= 5 by pagination; batching is handled downstream"
+  },
+  {
+    "id": "snippet-np-2",
+    "title": "Catalog Product Review Loader (N+1 Query)",
+    "category": "n_plus_one",
+    "categoryLabel": "N+1 Query Loop",
+    "description": "Queries product ratings and user details inside a catalog loop.",
+    "code": "package com.example.catalog;\n\nimport java.util.*;\nimport org.springframework.stereotype.Service;\n\n@Service\npublic class ProductReviewAggregator {\n\n    private final ProductRepository productRepo;\n    private final ReviewRepository reviewRepo;\n\n    public ProductReviewAggregator(ProductRepository p, ReviewRepository r) {\n        this.productRepo = p;\n        this.reviewRepo = r;\n    }\n\n    public Map<Long, Double> calculateAverageRatings(List<Long> productIds) {\n        Map<Long, Double> ratings = new HashMap<>();\n        for (Long id : productIds) {\n            List<Review> reviews = reviewRepo.findByProductId(id);\n            double avg = reviews.stream().mapToInt(Review::getStars).average().orElse(0.0);\n            ratings.put(id, avg);\n        }\n        return ratings;\n    }\n}",
+    "typicalRuleKey": "n_plus_one",
+    "exampleOverrideNote": "ReviewRepo utilizes a Redis L2 cache layer per ID; direct query is fine"
+  },
+  {
+    "id": "snippet-np-3",
+    "title": "Organization Member Hierarchy (N+1 Query)",
+    "category": "n_plus_one",
+    "categoryLabel": "N+1 Query Loop",
+    "description": "Fetches permission sets in a loop over team members.",
+    "code": "package com.example.org;\n\nimport java.util.*;\nimport org.springframework.stereotype.Service;\n\n@Service\npublic class TeamPermissionService {\n\n    private final DepartmentRepository deptRepo;\n    private final PermissionRepository permRepo;\n\n    public TeamPermissionService(DepartmentRepository d, PermissionRepository p) {\n        this.deptRepo = d;\n        this.permRepo = p;\n    }\n\n    public Set<String> getPermissionsForDept(Long deptId) {\n        List<TeamMember> members = deptRepo.findMembers(deptId);\n        Set<String> allPerms = new HashSet<>();\n        for (TeamMember member : members) {\n            PermissionSet perms = permRepo.findByUserId(member.getUserId());\n            allPerms.addAll(perms.getScopes());\n        }\n        return allPerms;\n    }\n}",
+    "typicalRuleKey": "n_plus_one",
+    "exampleOverrideNote": "Departments are strictly constrained to 3-5 users; individual queries are fine"
+  },
+  {
+    "id": "snippet-nc-1",
+    "title": "Tenant Header Resolver (Missing Null Check)",
+    "category": "null_check",
+    "categoryLabel": "Missing Null Checks",
+    "description": "Extracts tenant header and invokes string trimming without checking for null.",
+    "code": "package com.example.security;\n\nimport jakarta.servlet.http.HttpServletRequest;\nimport org.springframework.stereotype.Component;\n\n@Component\npublic class TenantContextResolver {\n\n    public String resolveTenantId(HttpServletRequest request) {\n        String header = request.getHeader(\"X-Tenant-ID\");\n        return header.trim().toLowerCase();\n    }\n}",
+    "typicalRuleKey": "null_check",
+    "exampleOverrideNote": "X-Tenant-ID is already verified by API Gateway before reaching backend"
+  },
+  {
+    "id": "snippet-nc-2",
+    "title": "User Profile Formatter (Missing Null Check)",
+    "category": "null_check",
+    "categoryLabel": "Missing Null Checks",
+    "description": "Directly invokes methods on nested address object without checking nullness.",
+    "code": "package com.example.profile;\n\npublic class UserProfileFormatter {\n\n    public String formatShippingAddress(UserProfile profile) {\n        Address address = profile.getAddress();\n        return address.getStreet().toUpperCase() + \", \" + address.getCity() + \" \" + address.getZipCode();\n    }\n}",
+    "typicalRuleKey": "null_check",
+    "exampleOverrideNote": "Database constraints and Bean Validation guarantee profile address is non-null"
+  },
+  {
+    "id": "snippet-nc-3",
+    "title": "Payment Metadata Extractor (Missing Null Check)",
+    "category": "null_check",
+    "categoryLabel": "Missing Null Checks",
+    "description": "Retrieves currency code from payment request map without null check.",
+    "code": "package com.example.payment;\n\nimport java.util.Map;\n\npublic class PaymentMetadataExtractor {\n\n    public String extractCurrency(Map<String, Object> payload) {\n        Object curr = payload.get(\"currency\");\n        return curr.toString().trim().toUpperCase();\n    }\n}",
+    "typicalRuleKey": "null_check",
+    "exampleOverrideNote": "Strict JSON Schema validation at edge ensures currency is non-null"
+  },
+  {
+    "id": "snippet-ec-1",
+    "title": "Cache Eviction Worker (Empty Catch Block)",
+    "category": "empty_catch",
+    "categoryLabel": "Swallowed Exception",
+    "description": "Silently catches Exception during background cache eviction with empty body.",
+    "code": "package com.example.cache;\n\nimport org.springframework.stereotype.Service;\n\n@Service\npublic class CacheJanitorService {\n\n    private final CacheClient cacheClient;\n\n    public CacheJanitorService(CacheClient cacheClient) {\n        this.cacheClient = cacheClient;\n    }\n\n    public void purgeStaleEntries(String keyPrefix) {\n        try {\n            cacheClient.evictKeysStartingWith(keyPrefix);\n        } catch (Exception e) {\n            // ignore\n        }\n    }\n}",
+    "typicalRuleKey": "empty_catch",
+    "exampleOverrideNote": "Background cache eviction is best-effort; failures must not fail requests"
+  },
+  {
+    "id": "snippet-ec-2",
+    "title": "Temp File Cleaner (Swallowed Exception)",
+    "category": "empty_catch",
+    "categoryLabel": "Swallowed Exception",
+    "description": "Catches IOException when deleting temporary upload files without logging stack trace.",
+    "code": "package com.example.storage;\n\nimport java.io.File;\n\npublic class TempFileCleaner {\n\n    public void deleteQuietly(File tempFile) {\n        try {\n            if (tempFile.exists()) {\n                tempFile.delete();\n            }\n        } catch (Exception ex) {\n            // do nothing\n        }\n    }\n}",
+    "typicalRuleKey": "empty_catch",
+    "exampleOverrideNote": "Quiet deletion is intentional for transient upload artifacts"
+  },
+  {
+    "id": "snippet-ec-3",
+    "title": "Heartbeat Ping Task (Empty Catch)",
+    "category": "empty_catch",
+    "categoryLabel": "Swallowed Exception",
+    "description": "Swallows socket timeouts in recurring telemetry heartbeat pings.",
+    "code": "package com.example.telemetry;\n\nimport java.net.Socket;\n\npublic class HeartbeatProbe {\n\n    public boolean isServiceAlive(String host, int port) {\n        try (Socket s = new Socket(host, port)) {\n            return true;\n        } catch (Exception ignored) {\n        }\n        return false;\n    }\n}",
+    "typicalRuleKey": "empty_catch",
+    "exampleOverrideNote": "Socket failure in probe intentionally returns boolean without error logging"
+  },
+  {
+    "id": "snippet-mn-1",
+    "title": "Session Expiry Calculator (Magic Numbers)",
+    "category": "magic_number",
+    "categoryLabel": "Magic Numbers",
+    "description": "Hardcoded 86400 and 1000 in millisecond calculation.",
+    "code": "package com.example.auth;\n\nimport java.time.Instant;\n\npublic class SessionExpiryCalculator {\n\n    public Instant computeExpiration(Instant loginTime, boolean rememberMe) {\n        if (rememberMe) {\n            return loginTime.plusSeconds(86400 * 30);\n        }\n        return loginTime.plusSeconds(3600);\n    }\n}",
+    "typicalRuleKey": "magic_number",
+    "exampleOverrideNote": "Seconds per day (86400) and hour (3600) are standard self-evident constants"
+  },
+  {
+    "id": "snippet-mn-2",
+    "title": "Rate Limiter Token Bucket (Magic Numbers)",
+    "category": "magic_number",
+    "categoryLabel": "Magic Numbers",
+    "description": "Hardcoded capacity 5000 and refill rates in throttling logic.",
+    "code": "package com.example.gateway;\n\npublic class RateLimiterBucket {\n\n    private int tokens = 5000;\n\n    public boolean allowRequest(int cost) {\n        if (tokens >= cost) {\n            tokens -= cost;\n            return true;\n        }\n        return false;\n    }\n}",
+    "typicalRuleKey": "magic_number",
+    "exampleOverrideNote": "Default token bucket size is fixed across tier-1 edge clusters"
+  },
+  {
+    "id": "snippet-mn-3",
+    "title": "Buffer Chunk Streamer (Magic Numbers)",
+    "category": "magic_number",
+    "categoryLabel": "Magic Numbers",
+    "description": "1024 byte chunk size embedded directly in packet splitting algorithm.",
+    "code": "package com.example.stream;\n\nimport java.io.InputStream;\nimport java.io.OutputStream;\n\npublic class StreamPumper {\n\n    public void transfer(InputStream in, OutputStream out) throws Exception {\n        byte[] buf = new byte[1024];\n        int len;\n        while ((len = in.read(buf)) != -1) {\n            out.write(buf, 0, len);\n        }\n    }\n}",
+    "typicalRuleKey": "magic_number",
+    "exampleOverrideNote": "1024-byte chunk size is the accepted standard socket buffer across modules"
+  },
+  {
+    "id": "snippet-tr-1",
+    "title": "CSV Report Generator (Missing Try-with-Resources)",
+    "category": "try_with_resources",
+    "categoryLabel": "Resource Leak / Streams",
+    "description": "FileWriter and BufferedWriter created without try-with-resources statement.",
+    "code": "package com.example.report;\n\nimport java.io.BufferedReader;\nimport java.io.FileReader;\nimport java.io.IOException;\n\npublic class ConfigFileReader {\n\n    public String readFirstLine(String path) throws IOException {\n        BufferedReader reader = new BufferedReader(new FileReader(path));\n        String line = reader.readLine();\n        reader.close();\n        return line;\n    }\n}",
+    "typicalRuleKey": "try_with_resources",
+    "exampleOverrideNote": "Legacy I/O wrapper has custom cleanup hooks managed in teardown"
+  },
+  {
+    "id": "snippet-tr-2",
+    "title": "Database Connection Query Runner (Missing Try-with-Resources)",
+    "category": "try_with_resources",
+    "categoryLabel": "Resource Leak / Streams",
+    "description": "JDBC Connection and Statement opened without try-with-resources block.",
+    "code": "package com.example.jdbc;\n\nimport java.sql.Connection;\nimport java.sql.DriverManager;\nimport java.sql.Statement;\nimport java.sql.ResultSet;\n\npublic class RawQueryRunner {\n\n    public int countUsers(String url) throws Exception {\n        Connection conn = DriverManager.getConnection(url);\n        Statement stmt = conn.createStatement();\n        ResultSet rs = stmt.executeQuery(\"SELECT count(*) FROM users\");\n        rs.next();\n        int count = rs.getInt(1);\n        conn.close();\n        return count;\n    }\n}",
+    "typicalRuleKey": "try_with_resources",
+    "exampleOverrideNote": "Connection pooling wrapper automatically cleans up connection on return"
+  },
+  {
+    "id": "snippet-tr-3",
+    "title": "Binary Asset Stream Copy (Missing Try-with-Resources)",
+    "category": "try_with_resources",
+    "categoryLabel": "Resource Leak / Streams",
+    "description": "FileInputStream opened and read without try-with-resources block.",
+    "code": "package com.example.media;\n\nimport java.io.FileInputStream;\nimport java.io.ByteArrayOutputStream;\n\npublic class AssetReader {\n\n    public byte[] loadBytes(String filepath) throws Exception {\n        FileInputStream fis = new FileInputStream(filepath);\n        ByteArrayOutputStream baos = new ByteArrayOutputStream();\n        byte[] buf = new byte[4096];\n        int read;\n        while ((read = fis.read(buf)) != -1) {\n            baos.write(buf, 0, read);\n        }\n        fis.close();\n        return baos.toByteArray();\n    }\n}",
+    "typicalRuleKey": "try_with_resources",
+    "exampleOverrideNote": "Native asset loaders are lifecycle-managed by the native image runtime"
+  }
+]
