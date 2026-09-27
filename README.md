@@ -98,4 +98,6 @@ Open the local URL shown by Vite (usually `http://localhost:5173`).
 5. Check the Memory Dashboard and History tabs to see accumulated learning over time
 
 ## Team
-- Deepthi Nakka
+- Sai Venkata Deepthi Nakka
+- Madhu hasini
+- Tejaswini N
